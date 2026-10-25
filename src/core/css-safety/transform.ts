@@ -35,9 +35,26 @@
  * @module @linxin666/dsh-client-ui-skin-center/css-safety
  */
 
-import { transform } from 'lightningcss'
+import { createRequire } from 'node:module'
 
 import { deriveFallbackTokens, derivePrimaryActionFallbacks } from './fallback.ts'
+
+type LightningcssModule = typeof import('lightningcss')
+
+/**
+ * lightningcss is a native module: importing it maps its addon for the whole
+ * host process, and Windows refuses to replace a mapped `.node` file. The host
+ * also installs plugins with pnpm at runtime, so an eager import makes those
+ * installs fail with ERR_PNPM_EPERM while the host is running. Resolve it on
+ * first use so importing this module stays free of native side effects.
+ */
+let lightningcss: LightningcssModule | undefined
+const requireFromHere = createRequire(import.meta.url)
+
+function loadLightningcss(): LightningcssModule {
+  lightningcss ??= requireFromHere('lightningcss') as LightningcssModule
+  return lightningcss
+}
 
 export interface SkinCssTransformOptions {
   /** Manifest id; becomes the html[data-dsh-skin="<id>"] scope value. */
@@ -275,7 +292,7 @@ export function transformSkinCss(css: string, options: SkinCssTransformOptions):
   // the text surgery, run the whitelist checks, warn on hash-class reliance
   // and generic keyframes. Nothing is returned to the serializer (see the
   // module header for the upstream crash this avoids).
-  transform({
+  loadLightningcss().transform({
     filename,
     code: Buffer.from(css),
     visitor: {
